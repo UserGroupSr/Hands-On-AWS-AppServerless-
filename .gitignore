@@ -1,0 +1,79 @@
+# ===== Dependências =====
+node_modules/
+**/node_modules/
+jspm_packages/
+
+# ===== Terraform =====
+# pasta de plugins/providers baixados pelo init (pode ser pesada)
+**/.terraform/
+.terraform.lock.hcl
+
+# STATE do Terraform — contém dados sensíveis (inclusive credenciais). NUNCA commitar.
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# arquivos de variáveis que podem conter chaves da AWS
+*.tfvars
+*.tfvars.json
+# ...mas MANTÉM os modelos .example (não têm chave real, servem de guia)
+!*.tfvars.example
+
+# plano salvo e zip gerado no build da Lambda
+*.tfplan
+lambda_build.zip
+**/lambda_build.zip
+
+# ===== Build / artefatos do SAM (legado — projeto migrado p/ Terraform) =====
+.aws-sam/
+samconfig.toml
+packaged.yaml
+packaged.yml
+*.zip
+
+# ===== Credenciais e segredos (NUNCA commitar) =====
+.env
+.env.*
+*.env
+.envrc
+aws.json
+credentials
+*.pem
+*.key
+*.ppk
+*.p12
+*.pfx
+id_rsa*
+.aws/
+secrets.json
+*.secret
+
+# ===== Logs =====
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===== Testes / cobertura =====
+coverage/
+.nyc_output/
+
+# ===== Cache de ferramentas =====
+.npm/
+.eslintcache
+.cache/
+
+# ===== Sistema operacional =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Editores / IDEs =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
