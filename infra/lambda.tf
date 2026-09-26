@@ -2,14 +2,14 @@
 #  LAMBDA — a função que roda o CRUD (handler.mjs)
 # =============================================================================
 #  Aqui o Terraform faz o papel do "sam build": ele mesmo empacota a pasta
-#  ../src em um .zip e envia pra AWS. Assim o aluno NÃO precisa do SAM CLI.
+#  ../api em um .zip e envia pra AWS. Assim o aluno NÃO precisa do SAM CLI.
 # =============================================================================
 
-# --- Empacota a pasta src/ em um .zip automaticamente ---
+# --- Empacota a pasta api/ em um .zip automaticamente ---
 #     (usa o provider "archive", que o terraform init baixa junto)
 data "archive_file" "lambda_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/../src"
+  source_dir  = "${path.module}/../api"
   output_path = "${path.module}/lambda_build.zip"
 }
 

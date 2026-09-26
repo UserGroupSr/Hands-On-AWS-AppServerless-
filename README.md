@@ -438,16 +438,16 @@ infra/
 ├── secrets.auto.tfvars             → 🔴 SUAS chaves reais (IGNORADO pelo git)
 ├── dynamodb.tf                     → cria a tabela do DynamoDB
 ├── iam.tf                          → cria a role e as permissões da Lambda
-├── lambda.tf                       → empacota a pasta ../src e cria a função Lambda
+├── lambda.tf                       → empacota a pasta ../api e cria a função Lambda
 ├── apigateway.tf                   → cria a HTTP API e as rotas GET/POST/PUT/DELETE /tasks
 └── outputs.tf                      → mostra a URL da API no final do apply
 
-src/
+api/
 ├── handler.mjs                     → o código do CRUD que roda na Lambda
 └── package.json                    → dependências do projeto
 ```
 
-> **Detalhe legal:** no `lambda.tf`, o Terraform **empacota sozinho** a pasta `src/` num
+> **Detalhe legal:** no `lambda.tf`, o Terraform **empacota sozinho** a pasta `api/` num
 > `.zip` e envia pra AWS. É por isso que você **não** precisa do SAM nem de `npm install`.
 
 ---
