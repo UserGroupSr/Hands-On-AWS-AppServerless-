@@ -1,56 +1,43 @@
-// =============================================================================
-//  HANDLER DA LAMBDA — CRUD de tarefas (to-do) no DynamoDB
-// =============================================================================
-//  Este é o código que roda DENTRO da AWS Lambda. Ele recebe a requisição que
-//  veio do API Gateway (o "event"), decide o que fazer com base no método HTTP
-//  (GET/POST/PUT/DELETE) e conversa com a tabela do DynamoDB.
-//
-//  Importante: NÃO precisamos instalar o AWS SDK. A partir do Node 18+, o
-//  runtime da Lambda já traz o "@aws-sdk/*" embutido — por isso o lab não pede
-//  "npm install".
-// =============================================================================
+// Handler da Lambda responsável pelo CRUD de tarefas no DynamoDB.
+// Recebe a requisição do API Gateway, identifica o método HTTP e acessa a tabela.
+// O runtime da Lambda no Node.js 18 ou superior já inclui o AWS SDK usado aqui.
 
-// SDK v3 da AWS: o "client" é a conexão bruta; o "lib-dynamodb" (DocumentClient)
-// deixa a gente trabalhar com objetos JS normais em vez do formato cru do DynamoDB.
+// O cliente base se conecta ao DynamoDB; o DocumentClient permite trabalhar
+// com objetos JavaScript comuns, sem usar o formato interno do DynamoDB.
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
     DynamoDBDocumentClient,
-    PutCommand,    // inserir item
-    ScanCommand,   // ler a tabela inteira
-    DeleteCommand, // apagar item
-    UpdateCommand  // atualizar item
+    PutCommand,    // Insere uma tarefa.
+    ScanCommand,   // Consulta todas as tarefas.
+    DeleteCommand, // Remove uma tarefa.
+    UpdateCommand  // Atualiza uma tarefa.
 } from "@aws-sdk/lib-dynamodb";
 
-// ⚡ WARM START (conceito importante de serverless):
-// criamos o cliente do DynamoDB AQUI FORA do handler, de propósito. A Lambda
-// reaproveita o mesmo "ambiente" entre chamadas seguidas (enquanto está "quente"),
-// então este cliente é criado UMA vez e reutilizado — deixando as próximas
-// invocações mais rápidas. Se criássemos dentro do handler, seria recriado a cada chamada.
+// O cliente fica fora do handler para ser reaproveitado entre invocações.
+// Assim, a Lambda não precisa criar uma nova conexão a cada requisição.
 const client = new DynamoDBClient({ region: "us-east-1" });
 const ddbDocClient = DynamoDBDocumentClient.from(client);
 
-// O nome da tabela NÃO fica "chumbado" no código: ele chega por uma VARIÁVEL DE
-// AMBIENTE (TASKS_TABLE), que o Terraform define ao criar a Lambda (veja lambda.tf).
-// Isso deixa o mesmo código funcionar com qualquer tabela, sem editar o código.
+// O Terraform informa o nome da tabela por meio da variável de ambiente TASKS_TABLE.
+// Dessa forma, o mesmo código pode ser usado com tabelas diferentes.
 const TABLE_NAME = process.env.TASKS_TABLE;
 
-// Ponto de entrada da Lambda. O "event" é tudo que o API Gateway mandou:
-// método HTTP, corpo (body), headers, etc.
+// Este é o ponto de entrada da Lambda. O evento contém o método HTTP,
+// o corpo da requisição, os headers e outras informações do API Gateway.
 export const handleTasks = async (event) => {
 
-    // Loga o evento inteiro no CloudWatch — ótimo pra depurar (ver o que chegou).
+    // Registra no CloudWatch o evento recebido para facilitar a investigação de erros.
     console.log("Evento recebido: ", JSON.stringify(event, null, 2));
 
     try {
 
-        //identifica o método HTTP da requisição
-        //HttpApi payload 2.0 => event.requestContext.http.method
-        //REST API / payload 1.0 => event.httpMethod
+        // Obtém o método HTTP dos formatos usados pelo API Gateway.
+        // APIs HTTP usam requestContext.http.method; APIs REST usam httpMethod.
         const httpMethod =
             event?.requestContext?.http?.method ||
             event?.httpMethod;
 
-        //retorna erro caso o método HTTP não seja identificado
+        // Sem o método HTTP, não é possível decidir qual operação executar.
         if (!httpMethod) {
             return {
                 statusCode: 400,
@@ -58,43 +45,39 @@ export const handleTasks = async (event) => {
             };
         }
 
-        //verifica o método HTTP e chama a função correspondente
+        // Encaminha a requisição para a função correspondente ao método HTTP.
         if (httpMethod === "POST") return await criarTask(event);
         if (httpMethod === "GET") return await listarTasks(event);
         if (httpMethod === "DELETE") return await deletarTask(event);
         if (httpMethod === "PUT") return await atualizarTask(event);
 
-        //#region => Função para criar uma task no DynamoDB
+        //#region Função que cria uma tarefa no DynamoDB.
         async function criarTask(event) {
             const body = JSON.parse(event.body || "{}");
 
-            //verifica se o campo 'title' está presente no corpo da requisição
+            // Exige um título para criar a tarefa.
             if (!body.title) {
 
-                //retorna um erro 400 caso o campo 'title' não esteja presente
+                // Informa ao cliente que o título não foi enviado.
                 return {
                     statusCode: 400,
                     body: JSON.stringify({ message: "O campo 'title' é obrigatório." }),
                 };
             }
 
-            // Monta o objeto da nova tarefa.
+            // Monta o objeto que será salvo como uma nova tarefa.
             const task = {
-                // 🆔 id = Date.now() vira o identificador da task.
-                //    Date.now() = quantos MILISSEGUNDOS se passaram desde 01/01/1970
-                //    (o "epoch"). Ex.: 1758895200000. Como a chave da tabela é String
-                //    (veja dynamodb.tf), convertemos com .toString().
-                //    ✅ Simples e serve pro lab (o relógio sempre avança → ids diferentes).
-                //    ⚠️ Em produção, o certo seria um UUID de verdade
-                //       (ex.: crypto.randomUUID()), porque dois POSTs no MESMO
-                //       milissegundo gerariam o mesmo id e um sobrescreveria o outro.
+                // Usa a data atual, convertida para texto, como identificador da tarefa.
+                // O valor representa milissegundos desde 1º de janeiro de 1970.
+                // Para este laboratório, isso produz um identificador diferente em cada chamada.
+                // Em produção, um UUID seria mais seguro para evitar colisões.
                 id: Date.now().toString(),
-                title: body.title,        // o texto que o usuário mandou
-                done: false,              // toda task nasce "não concluída"
-                createdAt: new Date().toISOString(), // data/hora de criação (ISO 8601)
+                title: body.title,        // Guarda o título enviado pelo usuário.
+                done: false,              // Toda tarefa começa como não concluída.
+                createdAt: new Date().toISOString(), // Registra a data de criação no padrão ISO 8601.
             };
 
-            //comando para inserir o item na tabela do DynamoDB
+            // Prepara o comando que insere a tarefa na tabela.
             const putCommand = new PutCommand({
                 TableName: TABLE_NAME,
                 Item: task,
@@ -109,16 +92,15 @@ export const handleTasks = async (event) => {
         }
         //#endregion
 
-        //#region => Função para listar todas as tasks no DynamoDB
+        //#region Função que lista todas as tarefas do DynamoDB.
         async function listarTasks(event) {
-            // Scan = lê a tabela INTEIRA. Perfeito pra um lab pequeno.
-            // ⚠️ Dica de prova/produção: Scan é "caro" em tabelas grandes (varre tudo).
-            //    Pra buscas por chave, o ideal é Query. Mas aqui, com poucas tasks, Scan é ok.
+            // Scan percorre todos os itens e é suficiente para a tabela pequena deste laboratório.
+            // Em tabelas grandes, uma consulta por chave com Query costuma ser mais adequada.
             const result = await ddbDocClient.send(new ScanCommand({
                 TableName: TABLE_NAME,
             }));
 
-            //retona todos os itens da tabela do DynamoDB
+            // Retorna os itens encontrados na tabela.
             return {
                 statusCode: 200,
                 body: JSON.stringify({ message: "Tasks recuperadas com sucesso!", tasks: result.Items }),
@@ -126,11 +108,11 @@ export const handleTasks = async (event) => {
         }
         //#endregion
 
-        //#region => Função para deletar uma task no DynamoDB
+        //#region Função que remove uma tarefa do DynamoDB.
         async function deletarTask(event) {
             const body = JSON.parse(event.body || "{}");
 
-            //verifica se o campo 'id' está presente no corpo da requisição
+            // Exige o identificador da tarefa que será removida.
             if (!body.id) {
                 return {
                     statusCode: 400,
@@ -138,7 +120,7 @@ export const handleTasks = async (event) => {
                 };
             }
 
-            //comando para deletar o item da tabela do DynamoDB
+            // Prepara o comando que remove a tarefa da tabela.
             const deleteCommand = new DeleteCommand({
                 TableName: TABLE_NAME,
                 Key: { id: body.id },
@@ -153,11 +135,11 @@ export const handleTasks = async (event) => {
         }
         //#endregion
 
-        //#region => Função para atualizar uma task no DynamoDB
+        //#region Função que atualiza uma tarefa no DynamoDB.
         async function atualizarTask(event) {
             const body = JSON.parse(event.body || "{}");
 
-            //verifica se o campo 'id' está presente no corpo da requisição
+            // Exige o identificador da tarefa que será atualizada.
             if (!body.id) {
                 return {
                     statusCode: 400,
@@ -165,12 +147,9 @@ export const handleTasks = async (event) => {
                 };
             }
 
-            // Monta o UPDATE dinamicamente: só atualiza os campos que vieram no body.
-            // Detalhe do DynamoDB: 'title' e 'done' são PALAVRAS RESERVADAS, então não
-            // dá pra usá-las direto na expressão. A saída é usar "apelidos" com #:
-            //   - names  (ExpressionAttributeNames)  → #title = "title", #done = "done"
-            //   - values (ExpressionAttributeValues) → :title = valor,  :done = valor
-            //   - sets   → pedaços da expressão, ex.: "#title = :title"
+            // Monta a atualização apenas com os campos enviados no corpo da requisição.
+            // Como title e done são nomes reservados do DynamoDB, usa apelidos
+            // em names e values para montar a expressão de atualização.
             const sets = [];
             const names = {};
             const values = {};
@@ -193,7 +172,7 @@ export const handleTasks = async (event) => {
                 };
             }
 
-            //comando para atualizar o item da tabela do DynamoDB
+            // Prepara o comando que atualiza a tarefa na tabela.
             const updateCommand = new UpdateCommand({
                 TableName: TABLE_NAME,
                 Key: { id: body.id },
@@ -203,10 +182,10 @@ export const handleTasks = async (event) => {
                 ReturnValues: "ALL_NEW",
             });
 
-            //executa o comando de atualização no DynamoDB
+            // Executa a atualização no DynamoDB.
             const result = await ddbDocClient.send(updateCommand);
 
-            //retorna o resultado da atualização
+            // Retorna a tarefa depois da atualização.
             return {
                 statusCode: 200,
                 body: JSON.stringify({ message: "Task atualizada com sucesso!", task: result.Attributes }),
@@ -214,19 +193,19 @@ export const handleTasks = async (event) => {
         }
         //#endregion
 
-        // Se chegou um método que não é GET/POST/PUT/DELETE, respondemos 405.
+        // Responde com 405 quando o método HTTP não é suportado.
         return {
             statusCode: 405,
             body: JSON.stringify({ message: "Método não permitido." }),
         };
 
-        //trata erros que possam ocorrer durante a execução da função
+        // Captura erros que ocorram durante o processamento da requisição.
     } catch (error) {
 
-        //retorna um erro interno do servidor em caso de exceção
+        // Registra o erro e informa ao cliente que houve uma falha interna.
         console.error("Erro ao processar a requisição: ", error);
 
-        //retorna a resposta 
+        // Retorna a resposta de erro ao cliente.
         return {
             statusCode: 500,
             body: JSON.stringify({ message: "Erro interno do servidor." }),
