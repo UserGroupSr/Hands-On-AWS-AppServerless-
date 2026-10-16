@@ -37,7 +37,7 @@ atualizar e apagar tarefas. Coisa simples, de propósito — o herói da histór
 Ao final, você terá uma **API na nuvem** com esta arquitetura:
 
 ```
-Você (curl/navegador)
+Você (curl.exe/navegador)
         │  HTTPS
         ▼
   API Gateway (HTTP API)     ← a "porta de entrada" da API
@@ -230,7 +230,7 @@ EOT
 
 Você tem **3 formas** de testar. Escolha a que preferir:
 
-### Forma A — `curl` no terminal (não instala nada no Win 10/11)
+### Forma A — `curl.exe` no terminal (não instala nada no Win 10/11)
 Rápido, no mesmo PowerShell. É a forma dos exemplos abaixo.
 
 ### Forma B — no navegador, sem instalar nada 🌐 (ótimo pra máquina travada)
@@ -254,7 +254,7 @@ Cada chamada usa o **mesmo endereço** (`/tasks`); o que muda é o **método**.
 > 📋 **Como usar cada exemplo:**
 > - **No Hoppscotch/navegador:** escolha o **método**, cole a **URL**, vá na aba **Body**,
 >   selecione **`application/json`** e cole o bloco **"JSON pro Body"**. Clique **Send**.
-> - **No terminal (`curl`):** copie e cole o comando `curl` (já vem com as aspas escapadas
+> - **No terminal (`curl.exe`):** copie e cole o comando `curl.exe` (já vem com as aspas escapadas
 >   do PowerShell).
 
 ### ➕ Criar uma tarefa (POST)
@@ -266,9 +266,9 @@ Método: **POST** | URL: `SUA_URL_AQUI`
 { "title": "Estudar AWS" }
 ```
 
-**curl (terminal):**
+**curl.exe (terminal):**
 ```powershell
-curl -X POST "SUA_URL_AQUI" -H "Content-Type: application/json" -d '{ \"title\": \"Estudar AWS\" }'
+curl.exe -X POST "SUA_URL_AQUI" -H "Content-Type: application/json" -d '{ \"title\": \"Estudar AWS\" }'
 ```
 
 Resposta esperada (guarde o `id` que voltar!):
@@ -283,9 +283,9 @@ Resposta esperada (guarde o `id` que voltar!):
 
 Método: **GET** | URL: `SUA_URL_AQUI` | **Não precisa de Body.**
 
-**curl (terminal):**
+**curl.exe (terminal):**
 ```powershell
-curl "SUA_URL_AQUI"
+curl.exe "SUA_URL_AQUI"
 ```
 
 ### ✏️ Atualizar uma tarefa (PUT)
@@ -297,9 +297,9 @@ Método: **PUT** | URL: `SUA_URL_AQUI` | Use o `id` que você guardou (mude `tit
 { "id": "1725973200000", "done": true }
 ```
 
-**curl (terminal):**
+**curl.exe (terminal):**
 ```powershell
-curl -X PUT "SUA_URL_AQUI" -H "Content-Type: application/json" -d '{ \"id\": \"1725973200000\", \"done\": true }'
+curl.exe -X PUT "SUA_URL_AQUI" -H "Content-Type: application/json" -d '{ \"id\": \"1725973200000\", \"done\": true }'
 ```
 
 ### 🗑️ Apagar uma tarefa (DELETE)
@@ -311,12 +311,12 @@ Método: **DELETE** | URL: `SUA_URL_AQUI`
 { "id": "1725973200000" }
 ```
 
-**curl (terminal):**
+**curl.exe (terminal):**
 ```powershell
-curl -X DELETE "SUA_URL_AQUI" -H "Content-Type: application/json" -d '{ \"id\": \"1725973200000\" }'
+curl.exe -X DELETE "SUA_URL_AQUI" -H "Content-Type: application/json" -d '{ \"id\": \"1725973200000\" }'
 ```
 
-> 💡 **Por que o `curl` tem barras `\"` e o JSON do Body não?** No `curl` do **PowerShell**,
+> 💡 **Por que o `curl.exe` tem barras `\"` e o JSON do Body não?** No `curl.exe` do **PowerShell**,
 > as barras invertidas `\"` são necessárias pra manter as aspas dentro do JSON (o PowerShell
 > "come" as aspas normais). Já o **Hoppscotch** quer o JSON limpo, com aspas normais — por
 > isso deixei os dois separados: é só copiar o certo pro lugar certo.
